@@ -14,6 +14,7 @@ const {
 const contractInstance = new ethers.Contract(CONTRACT_ADDRESS, abi, signer);
 const crypto = require("crypto");
 const User = require("../model/User");
+const LogData = require("../model/logdata");
 
 async function handlePostLogin(req, res) {
   const { aadharNumber } = req.body;
@@ -183,7 +184,13 @@ async function handleGetDataById(req, res) {
       hashedAadhar: data[3],
       hash: data[4],
     };
-    res.render("result", { message: `Data: ${JSON.stringify(val)}` });
+
+    await LogData.create({
+      id,
+      view: true,
+    });
+
+    res.json(val);
   } catch (error) {
     res.status(500).send(error.message);
   }
@@ -246,6 +253,21 @@ async function handleVerifyOwner(req, res) {
     res.status(500).json({ success: false, message: error.message });
   }
 }
+
+async function credVerified(req, res) {
+  try {
+    // Fetch all data from the LogData collection
+    const data = await LogData.find();
+    const verifiedCount = data.filter(
+      (item) => item.verified === "true"
+    ).length;
+    res.status(200).json({ data, verifiedCount });
+  } catch (error) {
+    console.error("Error fetching data:", error);
+    res.status(500).json({ message: "Server error, please try again later." });
+  }
+}
+
 
 async function handleSignup(req, res) {
   try {
@@ -333,4 +355,5 @@ module.exports = {
   handleSignup,
   handleLogin,
   handleProfile,
+  credVerified,
 };
