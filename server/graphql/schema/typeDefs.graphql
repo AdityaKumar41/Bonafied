@@ -1,0 +1,59 @@
+const {graphql} = require("graphql");
+
+const typeDefs = gql`
+  type User {
+    id: ID!
+    firstname: String!
+    lastname: String!
+    organizationName: String!
+    email: String!
+    url: String!
+  }
+
+  type Student {
+    id: ID!
+    name: String!
+    university: String!
+    passyear: Int!
+    hashedAadhar: String!
+    hash: String!
+    link: String!
+  }
+
+  type AuthPayload {
+    token: String!
+    user: User!
+  }
+
+  type Query {
+    getStudentData(id: ID!): Student
+    getAllStudents: [Student]
+  }
+
+  type Mutation {
+    signup(
+      firstname: String!
+      lastname: String!
+      organizationName: String!
+      email: String!
+      url: String!
+      password: String!
+    ): AuthPayload
+
+    setStudentData(
+      id: ID!
+      name: String!z
+      university: String!
+      passyear: Int!
+      aadharNumber: String!
+    ): Student
+
+    verifyStudentOwnership(
+      id: ID!
+      name: String!
+      university: String!
+      passyear: Int!
+      hashedAadhar: String!
+    ): Boolean
+  }
+`;

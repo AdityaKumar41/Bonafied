@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Result</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@^2.0/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+      async function verifyData() {
+        const entries = document.querySelectorAll(".entry");
+        entries.forEach(async (entry) => {
+          const id = entry.querySelector(".id").textContent.trim();
+          const name = entry.querySelector(".name").textContent.trim();
+          const university = entry
+            .querySelector(".university")
+            .textContent.trim();
+          const passyear = entry.querySelector(".passyear").textContent.trim();
+          const aadhar = entry.querySelector(".aadhar").textContent.trim();
+          const hash = entry.querySelector(".hash").textContent.trim();
+
+          try {
+            // Show loading overlay
+            document
+              .getElementById("loadingOverlay")
+              .classList.remove("hidden");
+
+            const response = await axios.post("/verify", {
+              id,
+              name,
+              university,
+              passyear,
+              hashedAadhar: aadhar, // Ensure this matches your server expectation
+            });
+
+            // Hide loading overlay
+            document.getElementById("loadingOverlay").classList.add("hidden");
+
+            if (response.data.success) {
+              // Render the certificate in the popup
+              document.getElementById("certificatePopupContent").innerHTML = `
+                            <h2 class="text-2xl font-semibold mb-2">Certificate of Verification</h2>
+                            <p class="text-lg font-semibold mb-4">${response.data.message}</p>
+                            <ul class="list-disc pl-5">
+                                <li><strong>ID:</strong> ${id}</li>
+                                <li><strong>Name:</strong> ${name}</li>
+                                <li><strong>Transaction Hash:</strong> ${hash}</li>
+                            </ul>
+                        `;
+              document
+                .getElementById("certificatePopup")
+                .classList.remove("hidden");
+            } else {
+              alert(response.data.message);
+            }
+          } catch (error) {
+            // Hide loading overlay
+            document.getElementById("loadingOverlay").classList.add("hidden");
+            console.error(
+              "Error verifying data:",
+              error.response ? error.response.data : error.message
+            );
+            alert("Error verifying data. Check the console for details.");
+          }
+        });
+      }
+
+      function closePopup() {
+        document.getElementById("certificatePopup").classList.add("hidden");
+      }
+    </script>
+  </head>
+  <body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+      <h1 class="text-2xl font-bold mb-4">Result</h1>
+      <div class="bg-white p-4 rounded shadow-md">
+        <% if (data.length === 0) { %>
+        <p class="text-lg font-semibold">No user Found!</p>
+        <% } %>
+
+        <p class="text-lg font-semibold"><%= message %></p>
+        <% if (data && data.length > 0) { %>
+        <div class="mt-4">
+          <h2 class="text-xl font-semibold">User Data:</h2>
+          <% data.forEach((entry) => { %>
+          <div class="mt-2 p-2 border rounded bg-gray-50 entry">
+            <ul class="list-disc pl-5">
+              <li>
+                <strong>ID:</strong> <span class="id"><%= entry.id %></span>
+              </li>
+              <li>
+                <strong>Name:</strong>
+                <span class="name"><%= entry.name %></span>
+              </li>
+              <li>
+                <strong>University:</strong>
+                <span class="university"><%= entry.university %></span>
+              </li>
+              <li>
+                <strong>Pass Year:</strong>
+                <span class="passyear"><%= entry.passyear %></span>
+              </li>
+              <li>
+                <strong>Aadhar:</strong>
+                <span class="aadhar"><%= entry.Aadhar %></span>
+              </li>
+              <li>
+                <strong>Transaction Hash:</strong>
+                <span class="hash"><%= entry.hash %></span>
+              </li>
+            </ul>
+          </div>
+          <% }) %>
+          <!-- Add the Verify button below the user data -->
+          <button
+            class="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700"
+            onclick="verifyData()"
+          >
+            Verify Data
+          </button>
+        </div>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Hidden Loading Overlay -->
+    <div
+      id="loadingOverlay"
+      class="fixed inset-0 bg-gray-700 bg-opacity-75 flex items-center justify-center hidden"
+    >
+      <div
+        class="spinner border-4 border-t-4 border-white border-opacity-50 rounded-full w-16 h-16 animate-spin"
+      ></div>
+    </div>
+
+    <!-- Hidden Popup -->
+    <div
+      id="certificatePopup"
+      class="fixed inset-0 bg-gray-700 bg-opacity-50 flex items-center justify-center hidden"
+    >
+      <div class="bg-white p-6 rounded shadow-lg w-full max-w-4xl relative">
+        <button
+          onclick="closePopup()"
+          class="absolute -top-2 right-2 text-gray-500 hover:text-gray-700 text-2xl"
+        >
+          &times;
+        </button>
+        <div id="certificatePopupContent">
+          <!-- Certificate content will be injected here -->
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

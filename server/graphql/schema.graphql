@@ -1,0 +1,37 @@
+# schema.graphql
+type Query {
+  getDataById(id: ID!): Data
+  getAllData: [Data]
+}
+
+type Mutation {
+  setData(
+    id: ID!
+    name: String!
+    university: String!
+    passyear: Int!
+    aadharNumber: String!
+  ): String
+  verifyOwner(
+    id: ID!
+    name: String!
+    university: String!
+    passyear: Int!
+    hashedAadhar: String!
+  ): VerificationResponse
+}
+
+type Data {
+  id: ID!
+  name: String!
+  university: String!
+  passyear: Int!
+  hash: String
+  hashedAadhar: String
+}
+
+type VerificationResponse {
+  success: Boolean!
+  message: String!
+  data: Data
+}
