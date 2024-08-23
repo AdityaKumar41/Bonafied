@@ -4,6 +4,8 @@ import { Label } from "./label";
 import { Input } from "./input";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { useUserStore } from "../store";
+import Link from "next/link";
 
 export default function LoginForm() {
   const [email, setEmail] = useState<string>("");
@@ -11,6 +13,11 @@ export default function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const router = useRouter();
+  const { user } = useUserStore();
+
+  if (user) {
+    router.push("/");
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -33,11 +40,10 @@ export default function LoginForm() {
       }
 
       const data = await response.json();
-      console.log("Login successful:", data);
 
       const user = { email: data.email, name: data.name }; // Modify based on your actual data structure
 
-      router.push("/"); // Redirect to the dashboard or another page
+      window.location.href = "/"; // Redirect to the dashboard
     } catch (err) {
       console.error("Error:", err);
       setError(null);
@@ -89,6 +95,7 @@ export default function LoginForm() {
 
         <div className="bg-gradient-to-r from-transparent via-neutral-300 dark:via-neutral-700 to-transparent my-8 h-[1px] w-full" />
       </form>
+      <Link href={"/signup"}>Register with us!</Link>
     </div>
   );
 }

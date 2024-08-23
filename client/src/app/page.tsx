@@ -1,4 +1,5 @@
 // app/page.tsx (for Dashboard)
+"use client";
 import React, { useEffect } from "react";
 import { InfoCard } from "@/components/ui/infoCard";
 import { ChatGraph } from "@/components/ui/graph";

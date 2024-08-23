@@ -1,22 +1,23 @@
 "use client";
 import { useEffect } from "react";
-import { useRouter } from "next/router";
 import { useUserStore } from "@/components/store/index";
 import Cookies from "js-cookie";
+import { redirect, usePathname } from "next/navigation";
 
 const useAuth = () => {
-  const setUser = useUserStore((state) => state.setUser);
-  const router = useRouter();
+  const { setUser, setLoading } = useUserStore();
+  const pathname = usePathname();
 
   useEffect(() => {
     const token = Cookies.get("token");
+    console.log(token);
 
-    if (!token) {
-      router.push("/login");
-      return;
+    if (!token && !["/login", "/signup"].includes(pathname)) {
+      redirect("/login");
     }
 
-    fetch("http://localhost:5000/profile", {
+    setLoading(true);
+    fetch("http://localhost:5000/auth/me", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -26,13 +27,17 @@ const useAuth = () => {
       .then(async (res) => {
         if (!res.ok) throw new Error("Authentication failed");
         const userData = await res.json();
-        setUser(userData, token); // Assuming the userData includes id, name, email
+        if (token) {
+          setUser(userData, token);
+        }
       })
       .catch(() => {
         Cookies.remove("token");
-        router.push("/login");
+      })
+      .finally(() => {
+        setLoading(false); // Ensure loading is set to false after the fetch completes
       });
-  }, [router, setUser]);
+  }, [setUser, setLoading]); // Added setLoading to the dependency array
 };
 
 export default useAuth;

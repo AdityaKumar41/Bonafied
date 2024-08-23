@@ -19,11 +19,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useUserStore } from "@/components/store";
+import toast, { Toaster } from "react-hot-toast";
+import { useDataStore } from "@/components/store/data";
 
-export function CardWithForm() {
+interface PropsHandler {
+  handleAddABtn: () => void;
+}
+
+export function CardWithForm({ handleAddABtn }: PropsHandler) {
+  const { user } = useUserStore();
+  const { setChanged } = useDataStore();
   const nameRef = useRef<HTMLInputElement>(null);
   const courseRef = useRef<HTMLInputElement>(null);
-  const [framework, setFramework] = useState<string>("");
+  const aadhaarRef = useRef<HTMLInputElement>(null);
+  const dateRef = useRef<HTMLInputElement>(null);
+  const [passYear, setPassYear] = useState<string>("");
 
   const handleSubmitData = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,15 +42,19 @@ export function CardWithForm() {
     const formData = {
       students: [
         {
-          id: "489666", // Replace with the actual ID or make it dynamic
           name: nameRef.current?.value,
-          university: "CUTM", // Replace with the actual university or make it dynamic
-          passyear: 2024, // Replace with the actual pass year or make it dynamic
-          aadharNumber: "123412341234", // Replace with actual Aadhar number input
-          framework, // Chosen framework from the select dropdown
+          university: user?.organizationName,
+          passyear: passYear,
+          courseProgram: courseRef.current?.value,
+          aadharNumber: aadhaarRef.current?.value,
+          date: dateRef.current?.value,
         },
       ],
     };
+
+    // Show loading toast
+
+    const toastId = toast.loading("Submitting data...");
 
     try {
       const response = await fetch("http://localhost:5000/set", {
@@ -50,69 +65,103 @@ export function CardWithForm() {
         body: JSON.stringify(formData),
       });
 
-      const result = await response.json();
-      if (response.ok) {
-        console.log("Data submitted successfully:", result);
-        // Handle success (e.g., display a success message, clear the form)
+      console.log(response);
+
+      if (response.statusText === "OK") {
+        // Show success toast
+        toast.success("Data submitted successfully!", {
+          id: toastId,
+        });
+        setChanged(true);
+
+        // Handle success (e.g., close the form, clear the form)
       } else {
-        console.error("Submission error:", result);
-        // Handle error (e.g., display an error message)
+        const result = await response.json();
+        // Show error toast
+        toast.error("Submission error: " + result.message, {
+          id: toastId,
+        });
       }
+      handleAddABtn();
     } catch (error) {
-      console.error("An error occurred:", error);
+      // Show error toast
+      toast.error("An error occurred: " + (error as Error).message, {
+        id: toastId,
+      });
     }
   };
 
   return (
-    <Card className="w-[500px]">
-      <CardHeader>
-        <CardTitle>Create Credential</CardTitle>
-        <CardDescription>
-          Start Your Quick Credential into Blockchain
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmitData}>
-          <div className="grid w-full items-center gap-4">
-            <div className="flex flex-col space-y-1.5">
-              <Label htmlFor="course">Course Program</Label>
-              <Input
-                id="course"
-                placeholder="Name of your project"
-                ref={courseRef}
-              />
+    <>
+      <Toaster /> {/* Add the Toaster component here */}
+      <Card className="w-[500px]">
+        <CardHeader>
+          <CardTitle>Create Credential</CardTitle>
+          <CardDescription>
+            Start Your Quick Credential into Blockchain
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmitData}>
+            <div className="grid w-full items-center gap-4">
+              <div className="flex flex-col space-y-1.5">
+                <Label htmlFor="course">Course Program</Label>
+                <Input
+                  id="course"
+                  placeholder="Name of your project"
+                  ref={courseRef}
+                />
+              </div>
+              <div className="flex flex-col space-y-1.5">
+                <Label htmlFor="name">Credential Name</Label>
+                <Input
+                  id="name"
+                  placeholder="Name of your project"
+                  ref={nameRef}
+                />
+              </div>
+              <div className="flex flex-col space-y-1.5">
+                <Label htmlFor="aadhaar">Aadhaar Number</Label>
+                <Input
+                  id="aadhaar"
+                  placeholder="Enter your Aadhaar number"
+                  ref={aadhaarRef}
+                />
+              </div>
+              <div className="flex flex-col space-y-1.5">
+                <Label htmlFor="passyear">Pass Out Year</Label>
+                <Select onValueChange={(value) => setPassYear(value)}>
+                  <SelectTrigger id="passyear">
+                    <SelectValue placeholder="Select a year" />
+                  </SelectTrigger>
+                  <SelectContent position="popper">
+                    <SelectItem value="2020">2020</SelectItem>
+                    <SelectItem value="2021">2021</SelectItem>
+                    <SelectItem value="2022">2022</SelectItem>
+                    <SelectItem value="2023">2023</SelectItem>
+                    <SelectItem value="2024">2024</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col space-y-1.5">
+                <Label htmlFor="date">Date</Label>
+                <Input
+                  id="date"
+                  placeholder="Enter a date"
+                  ref={dateRef}
+                  type="date"
+                />
+              </div>
             </div>
-            <div className="flex flex-col space-y-1.5">
-              <Label htmlFor="name">Credential Name</Label>
-              <Input
-                id="name"
-                placeholder="Name of your project"
-                ref={nameRef}
-              />
-            </div>
-            <div className="flex flex-col space-y-1.5">
-              <Label htmlFor="framework">Framework</Label>
-              <Select onValueChange={(value) => setFramework(value)}>
-                <SelectTrigger id="framework">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent position="popper">
-                  <SelectItem value="next" >Next.js</SelectItem>
-                  <SelectItem value="sveltekit">SvelteKit</SelectItem>
-                  <SelectItem value="astro">Astro</SelectItem>
-                  <SelectItem value="nuxt">Nuxt.js</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <CardFooter className="flex justify-between">
-            <Button type="button" variant="outline">
-              Cancel
-            </Button>
-            <Button type="submit">Submit</Button>
-          </CardFooter>
-        </form>
-      </CardContent>
-    </Card>
+            <CardFooter className="flex justify-between pt-4">
+              <Button type="button" variant="outline" onClick={handleAddABtn}>
+                Cancel
+              </Button>
+              <Button type="submit">Submit</Button>
+            </CardFooter>
+          </form>
+        </CardContent>
+      </Card>
+    </>
   );
 }

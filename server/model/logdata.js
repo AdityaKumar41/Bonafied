@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const logData = mongoose.Schema({
-  id: {
+  hash: {
     type: String,
     required: true,
   },
@@ -9,7 +9,7 @@ const logData = mongoose.Schema({
     type: String,
     default: false,
   },
-  verifed: {
+  verified: {
     type: String,
     default: false,
   },

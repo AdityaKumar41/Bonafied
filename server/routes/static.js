@@ -9,6 +9,9 @@ const {
   handleLogin,
   handleProfile,
   credView,
+  credVerified,
+  handleGetDataByHash,
+  handleLogout,
 } = require("../controller/block");
 const { checkCookiesAuthentication } = require("../middleware/check");
 const router = express.Router();
@@ -23,13 +26,14 @@ const router = express.Router();
 
 router.post("/login", handlePostLogin);
 router.post("/set", handleSetData);
-router.get("/get/:id", handleGetDataById);
+router.get("/get/:hash", handleGetDataByHash);
 router.get("/get", checkCookiesAuthentication("token"), handleGetData);
 router.post("/verify", checkCookiesAuthentication("token"), handleVerifyOwner);
 router.post("/signupuser", handleSignup);
 router.post("/loginuser", handleLogin);
-router.get("/credview", credView);
-router.get('/credissue',credIssue)
+router.get("/credview", credVerified);
+router.get("/auth/me", handleProfile);
+router.post("/logout", handleLogout);
 // router.get("/profile", handleProfile);
 
 module.exports = router;

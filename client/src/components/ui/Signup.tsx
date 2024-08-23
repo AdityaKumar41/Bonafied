@@ -5,6 +5,7 @@ import { Label } from "./label";
 import { Input } from "./input";
 import { cn } from "@/lib/utils";
 import { redirect } from "next/navigation";
+import { useUserStore } from "../store";
 
 // Define types for form data
 interface SignupFormData {
@@ -18,11 +19,17 @@ interface SignupFormData {
 
 export default function SignupForm() {
   // Initialize useForm with types and validation rules
+
+  const { user } = useUserStore();
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<SignupFormData>();
+
+  if (user) {
+    redirect("/");
+  }
 
   const onSubmit: SubmitHandler<SignupFormData> = async (data: any) => {
     try {

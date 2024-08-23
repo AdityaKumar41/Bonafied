@@ -15,6 +15,7 @@ const contractInstance = new ethers.Contract(CONTRACT_ADDRESS, abi, signer);
 const crypto = require("crypto");
 const User = require("../model/User");
 const LogData = require("../model/logdata");
+const { getVerifyAuth } = require("../utils/auth");
 
 async function handlePostLogin(req, res) {
   const { aadharNumber } = req.body;
@@ -52,7 +53,7 @@ async function handlePostLogin(req, res) {
       // Store blockchain data in MongoDB
       for (const entry of blockchainData) {
         const newData = {
-          id: entry.id.toString(),
+          date: entry.date, // Update to store date instead of id
           name: entry.name,
           university: entry.university,
           passyear: entry.passyear,
@@ -69,7 +70,7 @@ async function handlePostLogin(req, res) {
 
     // Format the data for rendering
     const formattedData = mongoData.map((entry) => ({
-      id: entry.id,
+      date: entry.date, // Update to use date instead of id
       name: entry.name,
       university: entry.university,
       passyear: entry.passyear,
@@ -90,6 +91,7 @@ async function handlePostLogin(req, res) {
 async function handleSetData(req, res) {
   try {
     const dataEntries = req.body.students;
+    console.log(dataEntries);
 
     // Check if the request body is an array
     if (!Array.isArray(dataEntries)) {
@@ -104,9 +106,17 @@ async function handleSetData(req, res) {
 
     // Iterate over each data entry
     for (const entry of dataEntries) {
-      const { id, name, university, passyear, aadharNumber } = entry;
+      const { name, university, passyear, aadharNumber, date, courseProgram } =
+        entry;
 
-      if (!id || !name || !university || !passyear || !aadharNumber) {
+      if (
+        !date ||
+        !name ||
+        !university ||
+        !passyear ||
+        !aadharNumber ||
+        !courseProgram
+      ) {
         errors.push({ entry, message: "Missing required fields." });
         continue;
       }
@@ -118,18 +128,17 @@ async function handleSetData(req, res) {
           .update(aadharNumber)
           .digest("hex");
 
-        // Convert `id` to a BigNumber
-        const idBigNumber = ethers.BigNumber.from(id);
-
         // Store certificate data on blockchain
         const setDataTx = await contractInstance.setData(
-          idBigNumber,
+          date, // Ensure `date` is correctly passed to the contract method
           name,
           university,
           passyear,
-          hashedAadhar
+          hashedAadhar,
+          courseProgram // Pass the new field
         );
-        const receipt = await setDataTx.wait();
+        const receipt = await setDataTx.wait(); // Wait for the transaction to be mined
+
         const transactionHash = receipt.transactionHash;
 
         if (!transactionHash) {
@@ -142,17 +151,20 @@ async function handleSetData(req, res) {
 
         // Save to the database
         const newData = await DataModel.create({
-          id: idBigNumber.toString(),
+          date, // Store `date` instead of `id`
           name,
           university,
           passyear,
           hash: transactionHash,
           hashedAadhar,
+          courseProgram, // Save the new field
         });
+
+        console.log(newData);
 
         results.push({ entry: newData, message: "Data set successfully!" });
       } catch (error) {
-        errors.push({ entry, message: error.message });
+        errors.push({ entry, message: `Blockchain error: ${error.message}` });
       }
     }
 
@@ -164,31 +176,40 @@ async function handleSetData(req, res) {
       message: `${results.length} entries processed successfully, ${errors.length} entries failed.`,
     });
   } catch (error) {
-    res.status(500).send({ success: false, message: error.message });
+    res
+      .status(500)
+      .send({ success: false, message: `Server error: ${error.message}` });
   }
 }
 
-async function handleGetDataById(req, res) {
-  // GET endpoint to retrieve data by ID
+async function handleGetDataByHash(req, res) {
   try {
-    const id = req.params.id;
+    const hash = req.params.hash;
+    console.log(hash);
 
-    // Convert `id` to a BigNumber
-    const idBigNumber = ethers.BigNumber.from(id);
+    // Retrieve data from the smart contract
+    const data = await contractInstance.getData(hash);
 
-    const data = await contractInstance.getData(idBigNumber);
+    // Destructure the data according to the updated contract
     let val = {
-      name: data[0],
-      university: data[1],
-      passyear: parseInt(data[2]),
-      hashedAadhar: data[3],
-      hash: data[4],
+      date: data[0],
+      name: data[1],
+      university: data[2],
+      passyear: parseInt(data[3]),
+      hashedAadhar: data[4],
+      courseProgram: data[5],
     };
 
-    await LogData.create({
-      id,
-      view: true,
+    // Log the data retrieval action
+    const existingEntry = await LogData.findOne({
+      hash: val.hashedAadhar,
     });
+    if (!existingEntry) {
+      await LogData.create({
+        hash: val.hashedAadhar,
+        view: "true",
+      });
+    }
 
     res.json(val);
   } catch (error) {
@@ -198,14 +219,16 @@ async function handleGetDataById(req, res) {
 
 async function handleGetData(req, res) {
   try {
-    const data = await contractInstance.getAllData();
-    const getAllDataList = data.map((user) => ({
-      id: parseInt(user.id),
-      name: user.name,
-      university: user.university,
-      passyear: parseInt(user.passyear),
-      hashedAadhar: user.hashedAadhar,
-    }));
+    // const data = await contractInstance.getAllData();
+    // const getAllDataList = data.map((user) => ({
+    //   id: parseInt(user.id),
+    //   name: user.name,
+    //   university: user.university,
+    //   passyear: parseInt(user.passyear),
+    //   hashedAadhar: user.hashedAadhar,
+    // }));
+
+    const getAllDataList = await DataModel.find({});
     res.status(200).json(getAllDataList);
   } catch (error) {
     res.status(500).send(error.message);
@@ -214,24 +237,26 @@ async function handleGetData(req, res) {
 
 async function handleVerifyOwner(req, res) {
   try {
-    const { id, name, university, passyear, hashedAadhar } = req.body;
-    console.log(id, name, university, passyear, hashedAadhar);
+    const { date, name, university, passyear, hashedAadhar, courseProgram } =
+      req.body;
+    console.log(date, name, university, passyear, hashedAadhar, courseProgram);
 
     // Call the smart contract function to verify data ownership
     const isVerified = await contractInstance.verifyDataOwnership(
-      id,
+      date,
       name,
       university,
       passyear,
-      hashedAadhar
+      hashedAadhar,
+      courseProgram // Include courseProgram in the verification call
     );
 
     if (isVerified) {
-      // Fetch the user data from MongoDB
-      const user = await DataModel.findOne({ id });
+      // Fetch the user data from MongoDB using the date as the key
+      const user = await DataModel.findOne({ date });
 
       if (user) {
-        // Respond with certificate data
+        // Respond with the certificate data
         res.json({
           success: true,
           message: "Data ownership verified successfully.",
@@ -261,13 +286,14 @@ async function credVerified(req, res) {
     const verifiedCount = data.filter(
       (item) => item.verified === "true"
     ).length;
-    res.status(200).json({ data, verifiedCount });
+
+    const credViewCount = data.filter((item) => item.view === "true").length;
+    res.status(200).json({ data, verifiedCount, credViewCount });
   } catch (error) {
     console.error("Error fetching data:", error);
     res.status(500).json({ message: "Server error, please try again later." });
   }
 }
-
 
 async function handleSignup(req, res) {
   try {
@@ -330,30 +356,36 @@ async function handleLogin(req, res) {
 }
 
 async function handleProfile(req, res) {
-  router.get("/profile", async (req, res) => {
-    try {
-      const token = req.cookies.token;
-      if (!token) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    const auth = req.headers.authorization.split(" ")[1];
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.id);
-      if (!user) return res.status(404).json({ error: "User not found" });
-
-      res.json({ user });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+    const user = getVerifyAuth(auth);
+    if (!user) {
+      return res.status(401).json({ error: "Invalid token" });
     }
-  });
+    const data = await User.findOne({ _id: user._id });
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+async function handleLogout(req, res) {
+  try {
+    return res.clearCookie("token").status(200).json({ message: "Logged out" });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
 }
 
 module.exports = {
   handlePostLogin,
   handleSetData,
-  handleGetDataById,
+  handleGetDataByHash,
   handleGetData,
   handleVerifyOwner,
   handleSignup,
   handleLogin,
   handleProfile,
   credVerified,
+  handleLogout,
 };
